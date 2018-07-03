@@ -1,0 +1,115 @@
+---
+- hosts: vagrant_server
+  vars_files:
+    - vagrant_vars.yml
+    - secrets.yml
+
+  tasks:
+
+################################################################################
+########### GIT PULL FILES
+#################################################################################
+
+    - name: Get frontend files from git
+      git: 
+        repo: 'https://{{ gitUser }}:{{ bitbucketPassword }}@bitbucket.org/{{ gitUser }}/{{ projectNameFrontend }}.git'
+        dest: '/home/vagrant/{{ projectNameFrontend }}'
+
+    - name: Get backend files from git
+      git: 
+        repo: 'https://{{ gitUser }}:{{ bitbucketPassword }}@bitbucket.org/{{ gitUser }}/{{ projectNameBackend }}.git'
+        dest: '/home/vagrant/{{ projectNameBackend }}'
+
+    - name: Copy config.js (for security reasons it's not under git)
+      become: yes
+      copy:
+        src: '{{localPath}}/{{ projectNameBackend }}/src/config.js'
+        dest: '/home/{{ projectUser }}/{{ projectNameBackend }}/src/'
+        owner: '{{ projectUser }}'
+        group: '{{ projectUser }}'
+        mode: 0644
+
+###############################################################################
+########## NPM INSTALL PACKAGES
+###############################################################################
+
+    - name: set environment variables 
+      # NOTE: for windows this command should looks like set NODE_ENV=development&&nodemon dist/app.js. Without space after and befor &&.
+      # This command may need you for start your app localy without vagrant
+      shell: "echo 'export NODE_ENV=production && export PRODUCTION_PLATFORM=vagrant' >> $HOME/.bashrc"
+
+    - name: Install ng package globaly
+      become: yes
+      npm:
+        name: '@angular/cli' 
+        global: yes
+
+    - name: Install gulp package globaly
+      become: yes
+      npm:
+        name: 'gulp-cli' 
+        global: yes
+    
+    - name: Install PM2 package globaly
+      become: yes
+      npm:
+        name: 'pm2@latest' 
+        global: yes
+
+    - name: Install packages based on package.json for Frontend
+      npm:
+        path: /home/{{ projectUser }}/{{ projectNameFrontend }}/
+
+    - name: Install packages based on package.json for Backend
+      npm:
+        path: /home/{{ projectUser }}/{{ projectNameBackend }}/
+
+    - name: remove default nginx site
+      become: yes
+      file: path={{ productionFrontendPath }} state=absent
+
+    - name: Create dir for Frontend
+      become: yes
+      file:
+        path: '{{ productionFrontendPath }}'
+        state: directory
+
+    - name: Build Frontend for production
+      become: yes
+      shell: 'ng build -prod --output-path={{ productionFrontendPath }}'
+      args:
+        chdir: /home/{{ projectUser }}/{{ projectNameFrontend }}/
+
+    - name: Clean dist folder
+      shell: 'gulp clean' 
+      args:
+        chdir: /home/{{ projectUser }}/{{ projectNameBackend }}/
+
+    - name: Build backend for production
+      shell: 'gulp build-production'
+      args: 
+        chdir: /home/{{ projectUser }}/{{ projectNameBackend }}/
+
+    - name: Start backend with PM2
+      shell: 'pm2 start app.js --name "api" --watch'
+      args:
+        chdir: /home/{{ projectUser }}/{{ projectNameBackend }}/dist
+
+###############################################################################
+########## RELOAD NGINX
+###############################################################################
+    
+    - name: reload nginx
+      become: true
+      service: 
+        name: nginx 
+        state: reloaded
+
+###############################################################################
+########## RELOAD PM2
+###############################################################################
+    
+    - name: Start backend with PM2
+      shell: 'pm2 restart "api"'
+      args:
+        chdir: /home/{{ projectUser }}/{{ projectNameBackend }}/dist

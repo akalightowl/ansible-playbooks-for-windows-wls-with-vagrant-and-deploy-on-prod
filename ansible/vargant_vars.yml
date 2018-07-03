@@ -1,0 +1,34 @@
+---
+########## MAIN VARS
+
+projectNameFrontend: otlservice-angular
+
+projectNameBackend: otlservice_ru_backend
+
+projectIp: 127.0.0.1
+
+localUser: akalightowl
+
+projectUser: vagrant
+
+gitUser: akalightowl
+
+gitServer: ssh://git@bitbucket.org:{{ gitUser }}
+
+gitProjectFrontendPath: ssh://git@bitbucket.org:{{ gitUser }}/{{ projectNameFrontend }}.git
+
+gitProjectBackendPath: ssh://git@bitbucket.org:{{ gitUser }}/{{ projectNameBackend }}.git
+
+productionFrontendPath: /usr/share/nginx/html 
+
+localPath: /mnt/c/Users/{{ localUser }}/WORK
+
+########## PACKAGES
+
+packages:
+  - git
+  - nginx
+  - curl
+  - libcurl 
+  - openssl
+  - policycoreutils-python

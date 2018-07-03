@@ -1,0 +1,115 @@
+---
+- hosts: vagrant_server
+  vars_files:
+    - vagrant_vars.yml
+    - secrets.yml
+
+  tasks:
+
+# You can test your connection with uncomment this part and comment all under this
+
+#     - ping:
+#         data: crash
+
+###############################################################################
+########## INSTALL INITIAL PACKAGES
+###############################################################################
+
+    - name: remove the apache package if installed
+      become: true
+      yum:
+        name: httpd
+        state: absent
+
+    - name: Update all packages to the latest version
+      become: true
+      yum:
+        name: '*'
+        state: latest
+
+    - name: Add epel-release repo
+      become: true
+      yum:
+        name: epel-release
+        state: present
+
+    - name: Install packages
+      become: true
+      yum:
+        name: "{{ packages }}"
+
+    - name: 'Start Nginx'
+      become: true
+      service:
+        name: nginx
+        state: started
+        enabled: yes
+
+    - name: Install Development Tools
+      become: true
+      yum:
+        name: "@Development tools"
+        state: present
+
+    - name: Download Nodejs
+      shell: "curl --silent --location https://rpm.nodesource.com/setup_8.x | sudo bash -"
+      args:
+        warn: false
+      
+    - name: Install Nodejs
+      become: true
+      yum:
+        name: nodejs
+        state: present
+
+    - name: 'Add MongoDb repo'
+      become: true
+      yum_repository:
+        name: "mongodb-org-4.0.0"
+        description: "MongoDB Repository"
+        baseurl: https://repo.mongodb.org/yum/redhat/$releasever/mongodb-org/4.0/x86_64/
+        gpgcheck: yes
+        enabled: yes
+        gpgkey: https:////www.mongodb.org/static/pgp/server-4.0.asc
+        file: mongodb-org-4.0.0
+
+    - name: 'Install MongoDb'
+      become: true
+      package:
+        name: mongodb-org
+        state: latest
+
+    - name: 'Setting SELinux for MongoDb'
+      become: true
+      shell: 'semanage port -a -t mongod_port_t -p tcp 27017'
+      ignore_errors: yes 
+      # ignore errors for not first running. Be carefull in first running.
+
+    - name: Rebooting host
+      become: true
+      shell: 'shutdown -r +1 "Reboot triggered by Ansible"'
+
+    - wait_for_connection:
+        delay: 30
+        timeout: 300
+
+    - name: 'Start MongoDB'
+      become: true
+      service:
+        name: mongod
+        state: started
+        enabled: yes
+
+###############################################################################
+########## CREATE CONFIG FILES FROM TEMPLATES
+###############################################################################
+    
+    - name: create nginx site
+      become: yes
+      template: src=templates/nginx.conf.j2 dest=/etc/nginx/nginx.conf
+
+    - name: reload nginx
+      become: true
+      service: 
+        name: nginx 
+        state: reloaded

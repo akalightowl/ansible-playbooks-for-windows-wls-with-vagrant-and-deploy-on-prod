@@ -1,0 +1,41 @@
+---
+- hosts: prod_server_root
+  vars_files:
+    - prod_vars.yml
+    - secrets.yml
+
+  tasks:
+
+###############################################################################
+########## CREATE PROJECT USER
+###############################################################################
+
+    - name: 'Create project user' 
+      user:
+        name: "{{ projectUser }}"
+        group: wheel
+        create_home: yes
+        password: "{{ projectUserPassword | password_hash('sha512') }}"
+        update_password: on_create
+      register: "{{ projectUser }}"
+
+    - name: Force "{{ projectUser }}" to change password
+      shell: 'chage -d 0 "{{ projectUser }}"'
+      when: '{{ projectUser }}.changed'
+
+    - name: Create .ssh folder for {{projectUser}}
+      file:
+        path: '/home/{{projectUser}}/.ssh'
+        owner: '{{projectUser}}'
+        group: 'wheel'
+        state: directory
+        mode: 0755
+      
+    - name: copy root ssh authorized_keys
+      copy: 
+        src: /root/.ssh/authorized_keys
+        dest: '/home/{{projectUser}}/.ssh/'
+        remote_src: yes
+        owner: '{{projectUser}}'
+        group: 'wheel'
+        mode: 0644

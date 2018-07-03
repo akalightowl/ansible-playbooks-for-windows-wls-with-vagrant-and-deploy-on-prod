@@ -1,0 +1,2 @@
+[prod_server_root]
+188.225.75.66 ansible_user=root
