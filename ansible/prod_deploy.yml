@@ -1,0 +1,64 @@
+---
+- hosts: prod_server_user
+  vars_files:
+    - vars.yml
+    - secrets.yml
+
+  tasks:
+
+    - name: Get frontend files from git
+      git:
+        force : yes
+        repo: 'https://{{ gitUser }}:{{ bitbucketPassword }}@bitbucket.org/{{ projectName }}/{{ projectNameFrontend }}.git'
+        dest: '/home/{{ projectUser }}/{{ projectNameFrontend }}'
+
+    - name: Get backend files from git
+      git:
+        force : yes
+        repo: 'https://{{ gitUser }}:{{ bitbucketPassword }}@bitbucket.org/{{ projectName }}/{{ projectNameBackend }}.git'
+        dest: '/home/{{ projectUser }}/{{ projectNameBackend }}'
+
+    - name: Copy config.js for Backend (for security reasons it's not under git)
+      become: yes
+      copy:
+        src: '{{ localPathWSL }}/{{ projectNameBackend }}/src/config.js'
+        dest: '/home/{{ projectUser }}/{{ projectNameBackend }}/src/'
+        owner: '{{ projectUser }}'
+        group: nginx
+        mode: 0644
+
+    - name: Set environment variables
+      shell: "echo 'export NODE_ENV=production && export PRODUCTION_PLATFORM=server' >> $HOME/.bashrc"
+
+    - name: Install packages based on package.json for Backend
+      npm:
+        path: /home/{{ projectUser }}/{{ projectNameBackend }}/
+
+    - name: Install devDependency for Backend
+      shell: 'npm install --only=dev'
+      args:
+        chdir: /home/{{ projectUser }}/{{ projectNameBackend }}/
+
+    - name: Remove all old frontend files
+      become: yes
+      shell: 'rm -fR {{ productionFrontendPath }}/*'
+
+    - name: Copy frontend dist files for production
+      become: yes
+      shell: 'cp -R /home/{{ projectUser }}/{{ projectNameFrontend }}/dist/* {{ productionFrontendPath }}'
+
+    - name: Change permission for files, user and group
+      become: yes
+      shell: 'chown -R {{ projectUser }}:nginx {{ productionFrontendPath }}/* &&
+              chmod -R u+x,g+x,o+x {{ productionFrontendPath }}/*'
+
+    - name: Reload nginx
+      become: true
+      service:
+        name: nginx
+        state: reloaded
+
+    - name: Start/Restart backend with PM2
+      shell: 'pm2 start app.js -f --name "api" --watch'
+      args:
+        chdir: /home/{{ projectUser }}/{{ projectNameBackend }}/dist

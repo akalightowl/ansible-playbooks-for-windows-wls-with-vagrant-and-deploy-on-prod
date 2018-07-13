@@ -13,12 +13,12 @@
     - name: Get frontend files from git
       git: 
         repo: 'https://{{ gitUser }}:{{ bitbucketPassword }}@bitbucket.org/{{ gitUser }}/{{ projectNameFrontend }}.git'
-        dest: '/home/vagrant/{{ projectNameFrontend }}'
+        dest: '/home/{{ projectUser }}/{{ projectNameFrontend }}'
 
     - name: Get backend files from git
       git: 
         repo: 'https://{{ gitUser }}:{{ bitbucketPassword }}@bitbucket.org/{{ gitUser }}/{{ projectNameBackend }}.git'
-        dest: '/home/vagrant/{{ projectNameBackend }}'
+        dest: '/home/{{ projectUser }}/{{ projectNameBackend }}'
 
     - name: Copy config.js (for security reasons it's not under git)
       become: yes
