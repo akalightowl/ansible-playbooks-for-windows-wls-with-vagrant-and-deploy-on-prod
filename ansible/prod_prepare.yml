@@ -1,19 +1,10 @@
 ---
 - hosts: prod_server_user
   vars_files:
-    - prod_vars.yml
+    - vars.yml
     - secrets.yml
 
   tasks:
-
-# You can test your connection with uncomment this part and comment all under this
-
-#     - ping:
-#         data: crash
-
-###############################################################################
-########## INSTALL INITIAL PACKAGES
-###############################################################################
 
     - name: remove the apache package if installed
       become: true
@@ -45,24 +36,29 @@
         state: started
         enabled: yes
 
+    - name: Add user to Nginx group
+      become: yes
+      shell: 'usermod -a -G nginx {{ projectUser }}'
+
     - name: Install Development Tools
       become: true
       yum:
         name: "@Development tools"
         state: present
 
-    - name: Download Nodejs
-      shell: "curl --silent --location https://rpm.nodesource.com/setup_8.x | sudo bash -"
+    - name: Download Nodejs 8
+      become: yes
+      shell: "curl --silent --location https://rpm.nodesource.com/setup_8.x | bash -"
       args:
         warn: false
-      
-    - name: Install Nodejs
+
+    - name: Install Nodejs 8
       become: true
       yum:
         name: nodejs
         state: present
 
-    - name: 'Add MongoDb repo'
+    - name: 'Add MongoDB 4 repo'
       become: true
       yum_repository:
         name: "mongodb-org-4.0.0"
@@ -73,7 +69,7 @@
         gpgkey: https:////www.mongodb.org/static/pgp/server-4.0.asc
         file: mongodb-org-4.0.0
 
-    - name: 'Install MongoDb'
+    - name: 'Install MongoDb 4'
       become: true
       package:
         name: mongodb-org
@@ -82,7 +78,7 @@
     - name: 'Setting SELinux for MongoDb'
       become: true
       shell: 'semanage port -a -t mongod_port_t -p tcp 27017'
-      ignore_errors: yes 
+      ignore_errors: yes
       # ignore errors for not first running. Be carefull in first running.
 
     - name: Rebooting host
@@ -100,16 +96,46 @@
         state: started
         enabled: yes
 
-###############################################################################
-########## CREATE CONFIG FILES FROM TEMPLATES
-###############################################################################
-    
     - name: create nginx site
       become: yes
       template: src=templates/nginx.conf.j2 dest=/etc/nginx/nginx.conf
 
     - name: reload nginx
       become: true
-      service: 
-        name: nginx 
+      service:
+        name: nginx
         state: reloaded
+
+    - name: Install PM2 package globaly
+      become: yes
+      npm:
+        name: 'pm2@latest'
+        global: yes
+
+    - name: Create PM2 startup script
+      become: yes
+      shell: env PATH=$PATH:/usr/bin pm2 startup systemd -u {{ projectUser }} --hp /home/{{ projectUser }}
+
+    - name: Add folder for upload files
+      file:
+        path: '/home/{{ projectUser }}/uploads'
+        state: directory
+        owner: '{{ projectUser }}'
+        group: nginx
+        mode: 0775
+
+    - name: Add folder for backups db
+      file:
+        path: '/home/{{ projectUser }}/backupdb'
+        state: directory
+        owner: '{{ projectUser }}'
+        group: nginx
+        mode: 0775
+
+    - name: Add folder tmp for backups dbp
+      file:
+        path: '/home/{{ projectUser }}/tmp'
+        state: directory
+        owner: '{{ projectUser }}'
+        group: nginx
+        mode: 0775

@@ -1,92 +1,89 @@
 ---
 - hosts: vagrant_server
   vars_files:
-    - vagrant_vars.yml
-    - secrets.yml
+  - vars.yml
+  - secrets.yml
 
   tasks:
 
-################################################################################
-########### GIT PULL FILES
-#################################################################################
+  # if have some network problem try change nameserver in /etc/resolv.conf to 8.8.8.8
+  - name: Get frontend files from git
+    git:
+      force: yes
+      repo: 'https://{{ gitUser }}:{{ bitbucketPassword }}@bitbucket.org/{{ projectName }}/{{ projectNameFrontend }}.git'
+      dest: '/home/{{ vagrantUser }}/{{ projectNameFrontend }}'
 
-    - name: Get frontend files from git
-      git: 
-        force : yes
-        repo: 'https://{{ gitUser }}:{{ bitbucketPassword }}@bitbucket.org/{{ gitUser }}/{{ projectNameFrontend }}.git'
-        dest: '/home/vagrant/{{ projectNameFrontend }}'
+  - name: Get backend files from git
+    git:
+      force: yes
+      repo: 'https://{{ gitUser }}:{{ bitbucketPassword }}@bitbucket.org/{{ projectName }}/{{ projectNameBackend }}.git'
+      dest: '/home/{{ vagrantUser }}/{{ projectNameBackend }}'
 
-    - name: Get backend files from git
-      git: 
-        force : yes
-        repo: 'https://{{ gitUser }}:{{ bitbucketPassword }}@bitbucket.org/{{ gitUser }}/{{ projectNameBackend }}.git'
-        dest: '/home/vagrant/{{ projectNameBackend }}'
+  - name: Copy config.js for Backend (for security reasons it's not under git)
+    become: yes
+    copy:
+      src: '{{ localPathWSL }}/{{ projectNameBackend }}/dist/config.js'
+      dest: '/home/{{ vagrantUser }}/{{ projectNameBackend }}/dist/'
+      owner: '{{ vagrantUser }}'
+      group: nginx
+      mode: 0644
 
-    - name: Copy config.js (for security reasons it's not under git)
-      become: yes
-      copy:
-        src: '{{localPath}}/{{ projectNameBackend }}/src/config.js'
-        dest: '/home/{{ projectUser }}/{{ projectNameBackend }}/src/'
-        owner: '{{ projectUser }}'
-        group: '{{ projectUser }}'
-        mode: 0644
+  - name: Set environment variables
+    shell: "echo 'export NODE_ENV=production && export PRODUCTION_PLATFORM=vagrant' >> $HOME/.bashrc  && source $HOME/.bashrc"
 
-###############################################################################
-########## NPM INSTALL PACKAGES
-###############################################################################
+  - name: Install packages based on package.json for Backend
+    npm:
+      path: /home/{{ vagrantUser }}/{{ projectNameBackend }}/
 
-    - name: set environment variables 
-      shell: "echo 'export NODE_ENV=production && export PRODUCTION_PLATFORM=vagrant' >> $HOME/.bashrc"
+  - name: Install devDependency for Backend
+    shell: 'npm install --only=dev'
+    args:
+      chdir: /home/{{ vagrantUser }}/{{ projectNameBackend }}/
 
-    - name: Install packages based on package.json for Frontend
-      npm:
-        path: /home/{{ projectUser }}/{{ projectNameFrontend }}/
+  - name: Remove all old frontend files
+    become: yes
+    shell: 'rm -fR {{ productionFrontendPath }}/*'
 
-    - name: Install packages based on package.json for Backend
-      npm:
-        path: /home/{{ projectUser }}/{{ projectNameBackend }}/
+  - name: Copy frontend dist files for production
+    become: yes
+    shell: 'cp -R /home/{{ vagrantUser }}/{{ projectNameFrontend }}/dist/* {{ productionFrontendPath }}'
 
-    - name: remove default nginx site
-      become: yes
-      file: path={{ productionFrontendPath }} state=absent
+  - name: Change permission for files, user and group for backend
+    become: yes
+    shell: 'chown -R {{ vagrantUser }}:nginx /home/{{ vagrantUser }}/{{ projectNameBackend }}/* &&
+              chmod -R u+x,g+x,o+x /home/{{ vagrantUser }}/{{ projectNameBackend }}/*'
 
-    - name: Create dir for Frontend
-      become: yes
-      file:
-        path: '{{ productionFrontendPath }}'
-        state: directory
+  - name: Change permission for files, user and group for frontend
+    become: yes
+    shell: 'chown -R {{ vagrantUser }}:nginx {{ productionFrontendPath }}/* &&
+              chmod -R u+x,g+x,o+x {{ productionFrontendPath }}/*'
 
-    - name: Build Frontend for production
-      become: yes
-      shell: 'ng build -prod --output-path={{ productionFrontendPath }}'
-      args:
-        chdir: /home/{{ projectUser }}/{{ projectNameFrontend }}/
+  - name: Copy files for backup database
+    copy:
+      src: "{{ localPathWSLVagrantShare }}"
+      dest: '/home/{{ vagrantUser }}'
+      owner: '{{ vagrantUser }}'
+      mode: 644
+    with_items:
+    - dest_dir
 
-    - name: Clean dist folder
-      shell: 'gulp clean' 
-      args:
-        chdir: /home/{{ projectUser }}/{{ projectNameBackend }}/
+  - name: Backup database
+    command: 'cd /home/{{ vagrantUser }} && mongorestore --db {{ projectDataBaseName }} ./vagrant-share'
 
-    - name: Build backend for production
-      shell: 'gulp build-production'
-      args: 
-        chdir: /home/{{ projectUser }}/{{ projectNameBackend }}/
+  - name: Reload nginx
+    become: true
+    service:
+      name: nginx
+      state: reloaded
 
-###############################################################################
-########## RELOAD NGINX
-###############################################################################
-    
-    - name: reload nginx
-      become: true
-      service: 
-        name: nginx 
-        state: reloaded
-
-###############################################################################
-########## RELOAD PM2
-###############################################################################
-    
-    - name: Start backend with PM2
-      shell: 'pm2 restart "api"'
+  - name: Restart nginx
+    become: true
+    service:
+      name: nginx
+      state: restarted
 
 
+  - name: Start/Restart backend with PM2
+    shell: 'pm2 start app.js -f --name "api" --watch'
+    args:
+      chdir: /home/{{ vagrantUser }}/{{ projectNameBackend }}/dist

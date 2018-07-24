@@ -1,7 +1,7 @@
 ---
 - hosts: prod_server_root
   vars_files:
-    - prod_vars.yml
+    - vars.yml
     - secrets.yml
 
   tasks:
@@ -18,10 +18,6 @@
         password: "{{ projectUserPassword | password_hash('sha512') }}"
         update_password: on_create
       register: "{{ projectUser }}"
-
-    - name: Force "{{ projectUser }}" to change password
-      shell: 'chage -d 0 "{{ projectUser }}"'
-      when: '{{ projectUser }}.changed'
 
     - name: Create .ssh folder for {{projectUser}}
       file:

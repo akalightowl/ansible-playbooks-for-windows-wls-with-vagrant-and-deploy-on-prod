@@ -1,6 +1,10 @@
+This is repo with complete example for using ansible on Windows 10 WSL with Vagrant. 
+First at all you should install WLS (Ubuntu 18.04), Vagrant for Windows and ansible in WLS.
+After that you can use deploy on vagrant box for local testing prod and deploy to VPS/VDS prod 
+
 # Ansible
 
-## Ansuble vault
+## Ansible vault
 
 1. create vault's file with passwords and put in it your password as plain text
 
@@ -48,9 +52,9 @@
 
 ## Ansible playbook
 
-5. Create file `vagrant_vars.yml` with all vars for this project.
+5. Create file `vars.yml` with all vars for this project.
 
-    *File vagrant_vars.yml for example*
+    *File vars.yml for example*
 
 6. Create file `vagrant_hosts.yml` with project hosts.
 
@@ -60,11 +64,7 @@
 
     *File vagrant_prepare.yml for example*
 
-8. Create file `vagrant_first_deploy.yml` with instructions for createing project and first settings
-
-    *File vagrant_first_deploy.yml for example*
-
-9. Create file `vagrant_deploy.yml` with instructions for deploy after adding changes to project.
+9. Create file `vagrant_deploy.yml` 
 
     *File vagrant_deploy.yml for example*
 
@@ -92,9 +92,9 @@
         
         ln -s /mnt/c/Users/akalightowl/.ssh ~/.ssh
 
-        chmod 600 /mnt/c/Users/akalightowl/WORK/vagrants/tmp/.vagrant/machines/default/virtualbox/private_key
+        chmod 600 /mnt/c/Users/akalightowl/WORK/otlservice-ru/deploy/.vagrant/machines/default/virtualbox/private_key
 
-        ssh -i /mnt/c/Users/akalightowl/WORK/vagrants/tmp/.vagrant/machines/default/virtualbox/private_key -o PasswordAuthentication=no vagrant@127.0.0.1 -p 2222
+        ssh -i /mnt/c/Users/akalightowl/WORK/otlservice-ru/deploy/.vagrant/machines/default/virtualbox/private_key -o PasswordAuthentication=no vagrant@127.0.0.1 -p 2222
 
 ## Deploy on vagrant. Run Angular + Express on Vagrant with WSL
 
@@ -104,77 +104,50 @@
 
         ansible-playbook -i vagrant_hosts vagrant_prepare.yml
 
-14. First deploy with installing ng, gulp, pm2 and etc.
-
-    **in WSL**
-
-        ansible-playbook -i vagrant_hosts vagrant_first_deploy.yml
-
-15. Simple deploy
+14. Deploy
 
     **in WSL**
 
         ansible-playbook -i vagrant_hosts vagrant_deploy.yml
 
+
 ## Deploy on prod. Run Angular + Express on production server (VDS/VPS and etc.)
 
-16. Copy your ssh public key to prod server.
+16. Create file `prod_hosts_root.yml`.
+
+    *File prod_hosts_root.yml for example*
+
+17. Create file `prod_hosts_user.yml`.
+
+    *File prod_hosts_user.yml for example*
+
+18. Create file `prod_prepare.yml` with istructions for first settings server (create user, ssh and etc.)
+
+    *File prod_prepare.yml for example*
+
+19. Create file `prod_deploy.yml` with instructions for deploy after adding changes to project.
+
+    *File prod_deploy.yml for example*
+
+20. Copy your ssh public key to prod server.
 
     **in WSL**
 
         ssh-copy-id -i ~/.ssh/id_rsa.pub root@youServerIp
 
-17. Create file `prod_vars.yml` with all vars for this project.
-
-    *File prod_vars.yml for example*
-
-18. Create file `prod_hosts_root.yml`.
-
-    *File prod_hosts_root.yml for example*
-
-19. Create file `prod_hosts_user.yml`.
-
-    *File prod_hosts_user.yml for example*
-
-20. Create file `prod_prepare.yml` with istructions for first settings server (create user, ssh and etc.)
-
-    *File prod_prepare.yml for example*
-
-21. Create file `prod_first_deploy.yml` with instructions for createing project and first settings
-
-    *File prod_first_deploy.yml for example*
-
-22. Create file `prod_deploy.yml` with instructions for deploy after adding changes to project.
-
-    *File prod_deploy.yml for example*
-
-23. Create project user on production server
+21. Create project user on production server
 
     **in WSL**
 
         ansible-playbook -i prod_hosts_root prod_create_user.yml
 
-24. Login under new user and change password. Create new password in secret.yml
-    It's strange point, but honestly i don't know how solve this in another way.
-
-    **in WSL**
-
-            ssh {{projectUser}}@{{projectIp}}
-            ansible-vault edit secrets.yml
-
-25. Prepare production server
+22. Prepare production server
 
     **in WSL**
 
         ansible-playbook -i prod_hosts_user prod_prepare.yml
 
-26. First deploy
-
-    **in WSL**
-
-        ansible-playbook -i prod_hosts_user prod_first_deploy.yml
-
-27. Simple deploy
+23. Deploy
 
     **in WSL**
 

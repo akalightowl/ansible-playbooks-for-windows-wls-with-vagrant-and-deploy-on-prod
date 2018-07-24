@@ -6,6 +6,23 @@
 
   tasks:
 
+    - name: Clear tmp folder
+      command: rm -Rf /home/{{ projectUser }}/tmp/*
+
+    - name: Create MongoDb backup
+      command: mongodump --out /home/{{ projectUser }}/tmp
+
+    - name: Zip MongoDb backup
+      command: tar -cvf /home/{{ projectUser }}/backupdb/{{ ansible_hostname }}--{{ ansible_date_time.date }}--{{ ansible_date_time.time }}--backup.tar.gz /home/{{ projectUser }}/tmp
+
+    # Rsync better for this, but it not working for me with WSL
+
+    - find: paths="/home/{{ projectUser }}/backupdb/" recurse=no patterns="*.tar.gz"
+      register: files_to_copy
+
+    - fetch: src={{ item.path }} dest={{ localPathWSLBackUp }} flat=yes
+      with_items: "{{ files_to_copy.files }}"
+
     - name: Get frontend files from git
       git:
         force : yes
@@ -21,14 +38,14 @@
     - name: Copy config.js for Backend (for security reasons it's not under git)
       become: yes
       copy:
-        src: '{{ localPathWSL }}/{{ projectNameBackend }}/src/config.js'
-        dest: '/home/{{ projectUser }}/{{ projectNameBackend }}/src/'
+        src: '{{ localPathWSL }}/{{ projectNameBackend }}/dist/config.js'
+        dest: '/home/{{ projectUser }}/{{ projectNameBackend }}/dist/'
         owner: '{{ projectUser }}'
         group: nginx
         mode: 0644
 
     - name: Set environment variables
-      shell: "echo 'export NODE_ENV=production && export PRODUCTION_PLATFORM=server' >> $HOME/.bashrc"
+      shell: "echo 'export NODE_ENV=production && export PRODUCTION_PLATFORM=server && export PROJECT_DOMAIN={{projectDomain}}' >> $HOME/.bashrc && source $HOME/.bashrc"
 
     - name: Install packages based on package.json for Backend
       npm:
@@ -57,6 +74,12 @@
       service:
         name: nginx
         state: reloaded
+
+    - name: Restart nginx
+      become: true
+      service:
+        name: nginx
+        state: restarted
 
     - name: Start/Restart backend with PM2
       shell: 'pm2 start app.js -f --name "api" --watch'

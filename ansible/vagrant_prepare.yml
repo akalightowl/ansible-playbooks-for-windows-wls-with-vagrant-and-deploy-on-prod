@@ -1,115 +1,136 @@
 ---
 - hosts: vagrant_server
   vars_files:
-    - vagrant_vars.yml
-    - secrets.yml
+  - vars.yml
+  - secrets.yml
 
   tasks:
 
-# You can test your connection with uncomment this part and comment all under this
+  - name: remove the apache package if installed
+    become: true
+    yum:
+      name: httpd
+      state: absent
 
-#     - ping:
-#         data: crash
+  - name: Update all packages to the latest version
+    become: true
+    yum:
+      name: '*'
+      state: latest
 
-###############################################################################
-########## INSTALL INITIAL PACKAGES
-###############################################################################
+  - name: Add epel-release repo
+    become: true
+    yum:
+      name: epel-release
+      state: present
 
-    - name: remove the apache package if installed
-      become: true
-      yum:
-        name: httpd
-        state: absent
+  - name: Install packages
+    become: true
+    yum:
+      name: "{{ packages }}"
 
-    - name: Update all packages to the latest version
-      become: true
-      yum:
-        name: '*'
-        state: latest
+  - name: 'Start Nginx'
+    become: true
+    service:
+      name: nginx
+      state: started
+      enabled: yes
 
-    - name: Add epel-release repo
-      become: true
-      yum:
-        name: epel-release
-        state: present
+  - name: Add user to Nginx group
+    become: yes
+    shell: 'usermod -a -G nginx {{ vagrantUser }}'
 
-    - name: Install packages
-      become: true
-      yum:
-        name: "{{ packages }}"
+  - name: Install Development Tools
+    become: true
+    yum:
+      name: "@Development tools"
+      state: present
 
-    - name: 'Start Nginx'
-      become: true
-      service:
-        name: nginx
-        state: started
-        enabled: yes
+  - name: Download Nodejs 8
+    become: yes
+    shell: "curl --silent --location https://rpm.nodesource.com/setup_8.x | bash -"
+    args:
+      warn: false
 
-    - name: Install Development Tools
-      become: true
-      yum:
-        name: "@Development tools"
-        state: present
+  - name: Install Nodejs 8
+    become: true
+    yum:
+      name: nodejs
+      state: present
 
-    - name: Download Nodejs
-      shell: "curl --silent --location https://rpm.nodesource.com/setup_8.x | sudo bash -"
-      args:
-        warn: false
-      
-    - name: Install Nodejs
-      become: true
-      yum:
-        name: nodejs
-        state: present
+  - name: 'Add MongoDB 4 repo'
+    become: true
+    yum_repository:
+      name: "mongodb-org-4.0.0"
+      description: "MongoDB Repository"
+      baseurl: https://repo.mongodb.org/yum/redhat/$releasever/mongodb-org/4.0/x86_64/
+      gpgcheck: yes
+      enabled: yes
+      gpgkey: https:////www.mongodb.org/static/pgp/server-4.0.asc
+      file: mongodb-org-4.0.0
 
-    - name: 'Add MongoDb repo'
-      become: true
-      yum_repository:
-        name: "mongodb-org-4.0.0"
-        description: "MongoDB Repository"
-        baseurl: https://repo.mongodb.org/yum/redhat/$releasever/mongodb-org/4.0/x86_64/
-        gpgcheck: yes
-        enabled: yes
-        gpgkey: https:////www.mongodb.org/static/pgp/server-4.0.asc
-        file: mongodb-org-4.0.0
+  - name: 'Install MongoDb 4'
+    become: true
+    package:
+      name: mongodb-org
+      state: latest
 
-    - name: 'Install MongoDb'
-      become: true
-      package:
-        name: mongodb-org
-        state: latest
+  - name: 'Setting SELinux for MongoDb'
+    become: true
+    shell: 'semanage port -a -t mongod_port_t -p tcp 27017'
+    ignore_errors: yes
+    # ignore errors for not first running. Be carefull in first running.
 
-    - name: 'Setting SELinux for MongoDb'
-      become: true
-      shell: 'semanage port -a -t mongod_port_t -p tcp 27017'
-      ignore_errors: yes 
-      # ignore errors for not first running. Be carefull in first running.
+  - name: Rebooting host
+    become: true
+    shell: 'shutdown -r +1 "Reboot triggered by Ansible"'
 
-    - name: Rebooting host
-      become: true
-      shell: 'shutdown -r +1 "Reboot triggered by Ansible"'
+  - wait_for_connection:
+      delay: 30
+      timeout: 300
 
-    - wait_for_connection:
-        delay: 30
-        timeout: 300
+  - name: 'Start MongoDB'
+    become: true
+    service:
+      name: mongod
+      state: started
+      enabled: yes
 
-    - name: 'Start MongoDB'
-      become: true
-      service:
-        name: mongod
-        state: started
-        enabled: yes
+  - name: create nginx site
+    become: yes
+    template: src=templates/nginx.vagrant.conf.j2 dest=/etc/nginx/nginx.conf
 
-###############################################################################
-########## CREATE CONFIG FILES FROM TEMPLATES
-###############################################################################
-    
-    - name: create nginx site
-      become: yes
-      template: src=templates/nginx.conf.j2 dest=/etc/nginx/nginx.conf
+  - name: reload nginx
+    become: true
+    service:
+      name: nginx
+      state: reloaded
 
-    - name: reload nginx
-      become: true
-      service: 
-        name: nginx 
-        state: reloaded
+  - name: Install PM2 package globaly
+    become: yes
+    npm:
+      name: 'pm2@latest'
+      global: yes
+
+  - name: Create PM2 startup script
+    become: yes
+    shell: env PATH=$PATH:/usr/bin pm2 startup systemd -u {{ vagrantUser }} --hp /home/{{ vagrantUser }}
+
+  - name: Add folder for upload files
+    become: yes
+    file:
+      path: '/home/{{ vagrantUser }}/uploads'
+      state: directory
+      owner: '{{ vagrantUser }}'
+      group: nginx
+      mode: 0775
+
+  # selinux not allow nginx use backend files and nginx return 404 in REST API. If this 2 command return errors, do it from vagrant ssh
+  - name: Change SELinux for backend files
+    become: yes
+    command: 'grep httpd /var/log/audit/audit.log | audit2allow -M mypol'
+
+  - name: Change SELinux for backend files
+    become: yes
+    command: 'semodule -i mypol.pp'
+

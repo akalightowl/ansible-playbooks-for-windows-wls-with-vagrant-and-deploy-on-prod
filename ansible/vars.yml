@@ -1,0 +1,44 @@
+---
+########## MAIN VARS
+
+projectName: otlservice-ru
+
+projectNameFrontend: frontend
+
+projectNameBackend: backend
+
+projectIpVagrant: 127.0.0.1
+
+projectIpServer: 188.225.75.66
+
+projectDomain: https://otlservice.ru/
+
+projectDataBaseName: otlservice
+
+localUser: akalightowl
+
+vagrantUser: vagrant
+
+projectUser: otlservice
+
+gitUser: akalightowl
+
+productionFrontendPath: /usr/share/nginx/html
+
+localPath: ~/WORK/{{ projectName }}
+
+localPathWSL: /mnt/c/Users/{{ localUser }}/WORK/{{ projectName }}
+
+localPathWSLVagrantShare: /mnt/c/Users/{{ localUser }}/WORK/{{ projectName }}/deploy/vagrant-share
+
+localPathWSLBackUp: /mnt/d/backup/WORK/{{ projectName }}/backup/
+
+########## PACKAGES
+
+packages:
+  - git
+  - nginx
+  - curl
+  - libcurl 
+  - openssl
+  - policycoreutils-python

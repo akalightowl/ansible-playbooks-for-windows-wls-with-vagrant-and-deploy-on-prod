@@ -1,0 +1,28 @@
+---
+- hosts: prod_server_user
+  vars_files:
+    - vars.yml
+    - secrets.yml
+
+  tasks:
+
+    - name: Copy nginx.conf
+      become: yes
+      copy:
+        src: '{{ localPathWSL }}/deploy/ansible/nginx.conf'
+        dest: '/etc/nginx/nginx.conf'
+        owner: root
+        group: root
+        mode: 0622
+
+    - name: Reload nginx
+      become: true
+      service:
+        name: nginx
+        state: reloaded
+
+    - name: Restart nginx
+      become: true
+      service:
+        name: nginx
+        state: restarted

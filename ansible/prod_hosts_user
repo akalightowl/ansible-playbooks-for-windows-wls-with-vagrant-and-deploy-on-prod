@@ -1,2 +1,2 @@
 [prod_server_user]
-188.225.75.66 ansible_user={{projectUser}} ansible_become=yes  ansible_become_method=sudo  ansible_become_pass="{{projectUserPassword}}"
+188.225.75.66 ansible_user={{projectUser}} ansible_become_method=sudo  ansible_become_pass="{{projectUserPassword}}"
