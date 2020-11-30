@@ -1,20 +1,20 @@
 This is repo with complete example for using ansible on Windows 10 WSL with Vagrant. 
-First at all you should install WLS (Ubuntu 18.04), Vagrant for Windows and ansible in WLS.
+First of all you should install WSL (Ubuntu 18.04), Vagrant for Windows and Ansible in WSL.
 After that you can use deploy on vagrant box for local testing prod and deploy to VPS/VDS prod 
 
 # Ansible
 
 ## Ansible vault
 
-1. create vault's file with passwords and put in it your password as plain text
+1. create vault file with passwords and put in your password as plain text
 
     **in WSL**
 
         ansible-vault create .vault_pass
 
-    **WARNING!!!: Don't add this file under source control**
+    **WARNING!!!: Don't add this file to source control**
 
-2. for solve problem that WSL(windows bash) create executable files and don't understand linux permission create wsl.conf from WSL(windows bash) and with linux editor (https://github.com/Microsoft/WSL/issues/81)
+2. to solve the problem that WSL (windows bash) creates executable files and doesn't properly handle Linux permissions, create wsl.conf within WSL (windows bash) and edit it (https://github.com/Microsoft/WSL/issues/81).
 
     **in WSL**
 
@@ -27,7 +27,7 @@ After that you can use deploy on vagrant box for local testing prod and deploy t
         options = "metadata"
         mountFsTab = false
 
-    Restart WSL(windows bash)
+    Restart WSL (windows bash)
 
 3. Create file `ansible.cfg` and add path to vault_pass file
 
@@ -36,19 +36,19 @@ After that you can use deploy on vagrant box for local testing prod and deploy t
         [defaults]
         vault_password_file = ./.vault_pass
 
-4. Create file `secrets.yml` with all secrets password and vars for this project.
+4. Create file `secrets.yml` with all secret passwords and variables for this project.
 
     **in WSL**
 
         ansible-vault create secrets.yml
 
-    This file be encrypted, you can edit it with vi from ansible-vault commands. Content should looks like
+    This file will be encrypted, you can edit it with vi from ansible-vault commands. Content should look like
 
         password: 12345678
         password2: 12345678
         ...
 
-    You can use this content in other files with names {{ password }}, {{ password2 }} and etc.
+    You can use this content in other files with {{ password }}, {{ password2 }} and etc.
 
 ## Ansible playbook
 
@@ -60,7 +60,7 @@ After that you can use deploy on vagrant box for local testing prod and deploy t
 
     *File vagrant_hosts.yml for example*
 
-7. Create file `vagrant_prepare.yml` with istructions for first settings server (create user, ssh and etc.)
+7. Create file `vagrant_prepare.yml` with instructions for first settings server (create user, ssh and etc.)
 
     *File vagrant_prepare.yml for example*
 
@@ -68,9 +68,9 @@ After that you can use deploy on vagrant box for local testing prod and deploy t
 
     *File vagrant_deploy.yml for example*
 
-## Vargant
+## Vagrant
 
-10. Create Vargant file with needed for you options adn add forwarded port 80 to 8080
+10. Create Vagrant file with your options and add forwarded port 80 to 8080
 
         Vagrant.configure("2") do |config|
             config.vm.box = "centos/7"
@@ -82,9 +82,13 @@ After that you can use deploy on vagrant box for local testing prod and deploy t
 
     **in Git-Bash (or windows shell)**
 
-        vargant up
+        vagrant up
 
-12. Getting SSH keys on the VMs. You need first delete `~/.ssh` in WLS, then linked it with you Windows ssh key, change you persmission for VM private key in `.vagrant/machines/default/virtualbox` right 600 from default WLS 777.
+12. Getting SSH keys on the VMs. You need first delete `~/.ssh` in WSL, then link it with your Windows ssh key, change the permissions for your VM private key in `.vagrant/machines/default/virtualbox` to `600` from default WSL `777`.
+
+    **Change permissions**
+
+        chmod 0600 .vagrant/machines/default/virtualbox/<private_key_file>
 
     **in WSL**
 
@@ -121,11 +125,11 @@ After that you can use deploy on vagrant box for local testing prod and deploy t
 
     *File prod_hosts_user.yml for example*
 
-18. Create file `prod_prepare.yml` with istructions for first settings server (create user, ssh and etc.)
+18. Create file `prod_prepare.yml` with instructions for first server settings (create user, ssh and etc.)
 
     *File prod_prepare.yml for example*
 
-19. Create file `prod_deploy.yml` with instructions for deploy after adding changes to project.
+19. Create file `prod_deploy.yml` with instructions to deploy after adding changes to project.
 
     *File prod_deploy.yml for example*
 
@@ -133,7 +137,7 @@ After that you can use deploy on vagrant box for local testing prod and deploy t
 
     **in WSL**
 
-        ssh-copy-id -i ~/.ssh/id_rsa.pub root@youServerIp
+        ssh-copy-id -i ~/.ssh/id_rsa.pub root@yourServerIp
 
 21. Create project user on production server
 
