@@ -14,7 +14,7 @@ After that you can use deploy on vagrant box for local testing prod and deploy t
 
     **WARNING!!!: Don't add this file to source control**
 
-2. to solve the problem that WSL (windows bash) creates executable files and doesn't properbly handle Linux permissions, create wsl.conf within WSL (windows bash) and edit it (https://github.com/Microsoft/WSL/issues/81).
+2. to solve the problem that WSL (windows bash) creates executable files and doesn't properly handle Linux permissions, create wsl.conf within WSL (windows bash) and edit it (https://github.com/Microsoft/WSL/issues/81).
 
     **in WSL**
 
@@ -60,7 +60,7 @@ After that you can use deploy on vagrant box for local testing prod and deploy t
 
     *File vagrant_hosts.yml for example*
 
-7. Create file `vagrant_prepare.yml` with istructions for first settings server (create user, ssh and etc.)
+7. Create file `vagrant_prepare.yml` with instructions for first settings server (create user, ssh and etc.)
 
     *File vagrant_prepare.yml for example*
 
@@ -84,7 +84,7 @@ After that you can use deploy on vagrant box for local testing prod and deploy t
 
         vagrant up
 
-12. Getting SSH keys on the VMs. You need first delete `~/.ssh` in WSL, then link it with your Windows ssh key, change the persmission for your VM private key in `.vagrant/machines/default/virtualbox` to `600` from default WSL `777`.
+12. Getting SSH keys on the VMs. You need first delete `~/.ssh` in WSL, then link it with your Windows ssh key, change the permissions for your VM private key in `.vagrant/machines/default/virtualbox` to `600` from default WSL `777`.
 
     **Change permissions**
 
